@@ -1,0 +1,3 @@
+cert:
+  organization: "My Organization"
+  valid_days: 365
