@@ -5,6 +5,9 @@ import (
     "crypto/x509/pkix"
     "math/big"
     "time"
+    "crypto/rand"
+    "crypto/rsa"
+    
 )
 
 func GenerateCertificate(privateKey *rsa.PrivateKey) (*x509.Certificate, error) {

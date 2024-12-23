@@ -1,12 +1,12 @@
 package certmanager
 
 import (
-    "crypto/x509"
     "encoding/pem"
     "os"
 )
 
-func SavePEMFile(filename string, pemType string, bytes []byte) error {
+// SavePEMFile saves a PEM-encoded block to a file
+func SaveCertPEMFile(filename string, pemType string, bytes []byte) error {
     file, err := os.Create(filename)
     if err != nil {
         return err
