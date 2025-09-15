@@ -12,15 +12,14 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"hashmi846003/P.K.I/internal/certificate"
-	"hashmi846003/P.K.I/internal/config"
-	"hashmi846003/P.K.I/internal/database"
-	"hashmi846003/P.K.I/internal/device"
-	"hashmi846003/P.K.I/internal/models"
-	"hashmi846003/P.K.I/internal/tpm"
+	"github.com/hashmi846003/P.K.I/internal/certificate"
+	"github.com/hashmi846003/P.K.I/internal/config"
+	"github.com/hashmi846003/P.K.I/internal/database"
+	"github.com/hashmi846003/P.K.I/internal/device"
+	"github.com/hashmi846003/P.K.I/internal/models"
+	"github.com/hashmi846003/P.K.I/internal/tpm"
 )
 
-// Server represents the HTTP server
 type Server struct {
 	config      *config.Config
 	db          *database.DB
@@ -30,132 +29,117 @@ type Server struct {
 	tpmManager  *tpm.TPMManager
 }
 
-// NewServer creates a new server instance
 func NewServer(cfg *config.Config, db *database.DB) (*Server, error) {
 	certManager := certificate.NewManager(db)
 	renewalManager := certificate.NewRenewalManager(certManager)
 	tpmManager := tpm.GetTPMManager()
 
-	server := &Server{
+	s := &Server{
 		config:      cfg,
 		db:          db,
 		certManager: certManager,
 		renewalMgr:  renewalManager,
 		tpmManager:  tpmManager,
 	}
-
-	// Setup HTTP server
-	server.setupRoutes()
-
-	return server, nil
+	s.setupRoutes()
+	return s, nil
 }
 
-// setupRoutes configures the HTTP routes
 func (s *Server) setupRoutes() {
-	router := mux.NewRouter()
+	r := mux.NewRouter()
 
-	// Add middleware
-	router.Use(s.corsMiddleware)
-	router.Use(s.loggingMiddleware)
-	router.Use(s.recoveryMiddleware)
+	r.Use(s.corsMiddleware)
+	r.Use(s.loggingMiddleware)
+	r.Use(s.recoveryMiddleware)
 
-	// Health and system endpoints
-	router.HandleFunc("/health", s.healthCheckHandler).Methods("GET")
-	router.HandleFunc("/info", s.systemInfoHandler).Methods("GET")
-	router.HandleFunc("/stats", s.systemStatsHandler).Methods("GET")
+	// Health endpoints
+	r.HandleFunc("/health", s.healthCheckHandler).Methods("GET")
+	r.HandleFunc("/info", s.systemInfoHandler).Methods("GET")
+	r.HandleFunc("/stats", s.systemStatsHandler).Methods("GET")
 
 	// Certificate Authority endpoints
-	router.HandleFunc("/ca", s.createCAHandler).Methods("POST")
-	router.HandleFunc("/ca/{id:[0-9]+}", s.getCAHandler).Methods("GET")
-	router.HandleFunc("/ca", s.listCAsHandler).Methods("GET")
-	router.HandleFunc("/ca/{id:[0-9]+}", s.deleteCAHandler).Methods("DELETE")
+	r.HandleFunc("/ca", s.createCAHandler).Methods("POST")
+	r.HandleFunc("/ca/{id:[0-9]+}", s.getCAHandler).Methods("GET")
+	r.HandleFunc("/ca", s.listCAsHandler).Methods("GET")
+	r.HandleFunc("/ca/{id:[0-9]+}", s.deleteCAHandler).Methods("DELETE")
 
 	// Device endpoints
-	router.HandleFunc("/devices", s.registerDeviceHandler).Methods("POST")
-	router.HandleFunc("/devices/{deviceId}", s.getDeviceHandler).Methods("GET")
-	router.HandleFunc("/devices/{deviceId}/fingerprint", s.updateFingerprintHandler).Methods("PUT")
-	router.HandleFunc("/devices", s.listDevicesHandler).Methods("GET")
+	r.HandleFunc("/devices", s.registerDeviceHandler).Methods("POST")
+	r.HandleFunc("/devices/{deviceId}", s.getDeviceHandler).Methods("GET")
+	r.HandleFunc("/devices/{deviceId}/fingerprint", s.updateFingerprintHandler).Methods("PUT")
+	r.HandleFunc("/devices", s.listDevicesHandler).Methods("GET")
 
 	// User endpoints
-	router.HandleFunc("/users", s.createUserHandler).Methods("POST")
-	router.HandleFunc("/users/{id:[0-9]+}", s.getUserHandler).Methods("GET")
-	router.HandleFunc("/users", s.listUsersHandler).Methods("GET")
+	r.HandleFunc("/users", s.createUserHandler).Methods("POST")
+	r.HandleFunc("/users/{id:[0-9]+}", s.getUserHandler).Methods("GET")
+	r.HandleFunc("/users", s.listUsersHandler).Methods("GET")
 
 	// Certificate endpoints
-	router.HandleFunc("/certificates", s.issueCertificateHandler).Methods("POST")
-	router.HandleFunc("/certificates/{serialNumber}", s.getCertificateHandler).Methods("GET")
-	router.HandleFunc("/certificates/device/{deviceId}", s.listDeviceCertificatesHandler).Methods("GET")
-	router.HandleFunc("/certificates/user/{userId:[0-9]+}", s.listUserCertificatesHandler).Methods("GET")
-	router.HandleFunc("/certificates/ca/{caId:[0-9]+}", s.listCACertificatesHandler).Methods("GET")
-	router.HandleFunc("/certificates/{serialNumber}/revoke", s.revokeCertificateHandler).Methods("POST")
-	router.HandleFunc("/certificates/{serialNumber}/validate", s.validateCertificateHandler).Methods("GET")
-	router.HandleFunc("/certificates/stats", s.getCertificateStatsHandler).Methods("GET")
-	
+	r.HandleFunc("/certificates", s.issueCertificateHandler).Methods("POST")
+	r.HandleFunc("/certificates/{serialNumber}", s.getCertificateHandler).Methods("GET")
+	r.HandleFunc("/certificates/device/{deviceId}", s.listDeviceCertificatesHandler).Methods("GET")
+	r.HandleFunc("/certificates/user/{userId:[0-9]+}", s.listUserCertificatesHandler).Methods("GET")
+	r.HandleFunc("/certificates/ca/{caId:[0-9]+}", s.listCACertificatesHandler).Methods("GET")
+	r.HandleFunc("/certificates/{serialNumber}/revoke", s.revokeCertificateHandler).Methods("POST")
+	r.HandleFunc("/certificates/{serialNumber}/validate", s.validateCertificateHandler).Methods("GET")
+	r.HandleFunc("/certificates/stats", s.getCertificateStatsHandler).Methods("GET")
+
 	// Certificate renewal endpoints
-	router.HandleFunc("/certificates/{serialNumber}/renew", s.renewCertificateHandler).Methods("POST")
-	router.HandleFunc("/certificates/expiring", s.listExpiringCertificatesHandler).Methods("GET")
-	router.HandleFunc("/certificates/auto-renew", s.autoRenewHandler).Methods("POST")
-	router.HandleFunc("/certificates/{serialNumber}/renewal-info", s.getRenewalInfoHandler).Methods("GET")
-	router.HandleFunc("/certificates/renewal-stats", s.getRenewalStatsHandler).Methods("GET")
-	router.HandleFunc("/certificates/bulk-renew", s.bulkRenewHandler).Methods("POST")
+	r.HandleFunc("/certificates/{serialNumber}/renew", s.renewCertificateHandler).Methods("POST")
+	r.HandleFunc("/certificates/expiring", s.listExpiringCertificatesHandler).Methods("GET")
+	r.HandleFunc("/certificates/auto-renew", s.autoRenewHandler).Methods("POST")
+	r.HandleFunc("/certificates/{serialNumber}/renewal-info", s.getRenewalInfoHandler).Methods("GET")
+	r.HandleFunc("/certificates/renewal-stats", s.getRenewalStatsHandler).Methods("GET")
+	r.HandleFunc("/certificates/bulk-renew", s.bulkRenewHandler).Methods("POST")
 
 	// TPM endpoints
-	router.HandleFunc("/tmp/info", s.tpmInfoHandler).Methods("GET")
-	router.HandleFunc("/tmp/generate-key", s.tmpGenerateKeyHandler).Methods("POST")
-	router.HandleFunc("/tmp/attest/{deviceId}", s.tmpAttestHandler).Methods("POST")
-	router.HandleFunc("/tmp/encrypt", s.tmpEncryptHandler).Methods("POST")
-	router.HandleFunc("/tmp/decrypt", s.tmpDecryptHandler).Methods("POST")
-	router.HandleFunc("/tmp/quote", s.tmpQuoteHandler).Methods("POST")
-	router.HandleFunc("/tmp/metrics", s.tmpMetricsHandler).Methods("GET")
+	r.HandleFunc("/tpm/info", s.tpmInfoHandler).Methods("GET")
+	r.HandleFunc("/tpm/generate-key", s.tpmGenerateKeyHandler).Methods("POST")
+	r.HandleFunc("/tpm/attest/{deviceId}", s.tpmAttestHandler).Methods("POST")
+	r.HandleFunc("/tpm/encrypt", s.tpmEncryptHandler).Methods("POST")
+	r.HandleFunc("/tpm/decrypt", s.tpmDecryptHandler).Methods("POST")
+	r.HandleFunc("/tpm/quote", s.tpmQuoteHandler).Methods("POST")
+	r.HandleFunc("/tpm/metrics", s.tpmMetricsHandler).Methods("GET")
 
 	// Database endpoints
-	router.HandleFunc("/database/stats", s.databaseStatsHandler).Methods("GET")
-	router.HandleFunc("/database/health", s.databaseHealthHandler).Methods("GET")
+	r.HandleFunc("/database/stats", s.databaseStatsHandler).Methods("GET")
+	r.HandleFunc("/database/health", s.databaseHealthHandler).Methods("GET")
 
 	s.httpServer = &http.Server{
 		Addr:         fmt.Sprintf(":%d", s.config.ServerPort),
-		Handler:      router,
+		Handler:      r,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
 }
 
-// Start starts the server
 func (s *Server) Start() error {
-	log.Printf("🌐 Starting server on port %d", s.config.ServerPort)
-	
+	log.Printf("Starting server on port %d", s.config.ServerPort)
 	if s.config.TLSEnabled {
-		log.Printf("🔒 Starting HTTPS server with TLS")
 		return s.httpServer.ListenAndServeTLS(s.config.CertFile, s.config.KeyFile)
-	} else {
-		log.Printf("🌍 Starting HTTP server (TLS disabled)")
-		return s.httpServer.ListenAndServe()
 	}
+	return s.httpServer.ListenAndServe()
 }
 
-// Stop gracefully stops the server
 func (s *Server) Stop() error {
-	log.Println("🛑 Stopping server...")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
 	return s.httpServer.Shutdown(ctx)
 }
 
-// Middleware functions
+// Middlewares
+
 func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		w.Header().Set("Access-Control-Max-Age", "3600")
-		
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		
 		next.ServeHTTP(w, r)
 	})
 }
@@ -163,12 +147,8 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		
-		// Create a response writer wrapper to capture status code
 		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
-		
 		next.ServeHTTP(wrapped, r)
-		
 		duration := time.Since(start)
 		log.Printf("📡 %s %s %d %v", r.Method, r.RequestURI, wrapped.statusCode, duration)
 	})
@@ -196,323 +176,236 @@ func (rw *responseWriter) WriteHeader(code int) {
 	rw.ResponseWriter.WriteHeader(code)
 }
 
-// Health check endpoint
+// Helper JSON writers
+
+func writeJSON(w http.ResponseWriter, v interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("Failed to write JSON response: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
+}
+
+func writeJSONCreated(w http.ResponseWriter, v interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("Failed to write JSON response: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
+}
+
+// Health Handlers
+
 func (s *Server) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	health := map[string]interface{}{
-		"status":    "healthy",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"version":   "1.0.0",
-		"database":  "connected",
+		"status":      "healthy",
+		"timestamp":   time.Now().Format(time.RFC3339),
+		"version":     "1.0.0",
+		"database":    "connected",
 		"server_port": s.config.ServerPort,
 	}
-
-	// Check database health
 	if err := s.db.HealthCheck(); err != nil {
 		health["status"] = "unhealthy"
 		health["database"] = "error: " + err.Error()
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
-
-	// Check TPM status
-	if s.tmpManager.IsTPMAvailable() {
-		health["tmp"] = "available"
+	if s.tpmManager.IsTPMAvailable() {
+		health["tpm"] = "available"
 	} else {
-		health["tmp"] = "simulation_mode"
+		health["tpm"] = "simulation_mode"
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(health)
+	writeJSON(w, health)
 }
 
-// System info endpoint
 func (s *Server) systemInfoHandler(w http.ResponseWriter, r *http.Request) {
-	systemInfo := device.GetDetailedSystemInfo()
-	systemInfo["tpm"] = s.tmpManager.GetTPMInfo()
-	systemInfo["server"] = map[string]interface{}{
-		"port":         s.config.ServerPort,
-		"tls_enabled":  s.config.TLSEnabled,
-		"log_level":    s.config.LogLevel,
-		"development":  s.config.IsDevelopment(),
+	sysInfo := device.GetDetailedSystemInfo()
+	sysInfo["tpm"] = s.tpmManager.GetTPMInfo()
+	sysInfo["server"] = map[string]interface{}{
+		"port":        s.config.ServerPort,
+		"tls_enabled": s.config.TLSEnabled,
+		"log_level":   s.config.LogLevel,
 	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(systemInfo)
+	writeJSON(w, sysInfo)
 }
 
-// System stats endpoint
 func (s *Server) systemStatsHandler(w http.ResponseWriter, r *http.Request) {
 	stats := map[string]interface{}{
 		"database": s.db.GetStats(),
-		"tmp":      s.tmpManager.GetTPMMetrics(),
+		"tpm":      s.tpmManager.GetTPMMetrics(),
 		"uptime":   time.Since(time.Now().Truncate(time.Hour)).String(),
 	}
-	
-	// Get certificate stats
 	if certStats, err := s.certManager.GetCertificateStats(); err == nil {
 		stats["certificates"] = certStats
 	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(stats)
+	writeJSON(w, stats)
 }
 
-// Create CA endpoint
+// CA Handlers
+
 func (s *Server) createCAHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name string `json:"name"`
 	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Name == "" {
+		http.Error(w, "Invalid CA name", http.StatusBadRequest)
 		return
 	}
-
-	if req.Name == "" {
-		http.Error(w, "CA name is required", http.StatusBadRequest)
-		return
-	}
-
 	ca, err := s.certManager.CreateCA(req.Name)
 	if err != nil {
-		log.Printf("❌ Failed to create CA: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to create CA: %v", err), http.StatusInternalServerError)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(ca.ToJSON())
+	writeJSONCreated(w, ca.ToJSON())
 }
 
-// Get CA endpoint
 func (s *Server) getCAHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	idStr := vars["id"]
-	
-	id, err := strconv.Atoi(idStr)
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		http.Error(w, "Invalid CA ID", http.StatusBadRequest)
 		return
 	}
-
-	ca, err := s.certManager.GetCAByID(id)
+	ca, err := s.certManager.GetCAByIDExported(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(ca.ToJSON())
+	writeJSON(w, ca.ToJSON())
 }
 
-// List CAs endpoint
 func (s *Server) listCAsHandler(w http.ResponseWriter, r *http.Request) {
 	cas, err := s.certManager.ListAllCAs()
 	if err != nil {
-		log.Printf("❌ Failed to list CAs: %v", err)
 		http.Error(w, "Failed to list CAs", http.StatusInternalServerError)
 		return
 	}
-
-	// Convert to safe JSON format
-	var response []map[string]interface{}
-	for _, ca := range cas {
-		response = append(response, ca.ToJSON())
+	out := make([]map[string]interface{}, 0, len(cas))
+	for _, c := range cas {
+		out = append(out, c.ToJSON())
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, out)
 }
 
-// Delete CA endpoint
 func (s *Server) deleteCAHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	idStr := vars["id"]
-	
-	id, err := strconv.Atoi(idStr)
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		http.Error(w, "Invalid CA ID", http.StatusBadRequest)
 		return
 	}
-
 	err = s.certManager.DeleteCA(id)
 	if err != nil {
-		log.Printf("❌ Failed to delete CA: %v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Register device endpoint
+// Device Handlers
+
 func (s *Server) registerDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		DeviceID   string `json:"device_id"`
 		TPMEnabled bool   `json:"tmp_enabled"`
 	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.DeviceID == "" {
+		http.Error(w, "Invalid device registration", http.StatusBadRequest)
 		return
 	}
-
-	if req.DeviceID == "" {
-		http.Error(w, "Device ID is required", http.StatusBadRequest)
-		return
-	}
-
-	// Generate device fingerprint
 	fingerprint := device.GenerateFingerprint(req.DeviceID)
-
-	// Create device model
-	deviceModel := models.NewDevice(req.DeviceID, fingerprint, req.TPMEnabled)
-
-	// Save device to database
-	err := s.saveDevice(deviceModel)
-	if err != nil {
-		log.Printf("❌ Failed to save device: %v", err)
+	dev := models.NewDevice(req.DeviceID, fingerprint, req.TPMEnabled)
+	if err := s.saveDevice(dev); err != nil {
 		http.Error(w, "Failed to register device", http.StatusInternalServerError)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(deviceModel.ToJSON())
+	writeJSONCreated(w, dev.ToJSON())
 }
 
-// Get device endpoint
 func (s *Server) getDeviceHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	deviceID := vars["deviceId"]
-
-	device, err := s.getDeviceByID(deviceID)
+	deviceID := mux.Vars(r)["deviceId"]
+	dev, err := s.getDeviceByID(deviceID)
 	if err != nil {
 		http.Error(w, "Device not found", http.StatusNotFound)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(device.ToJSON())
+	writeJSON(w, dev.ToJSON())
 }
 
-// List devices endpoint
 func (s *Server) listDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	devices, err := s.listAllDevices()
 	if err != nil {
-		log.Printf("❌ Failed to list devices: %v", err)
 		http.Error(w, "Failed to list devices", http.StatusInternalServerError)
 		return
 	}
-
-	var response []map[string]interface{}
-	for _, device := range devices {
-		response = append(response, device.ToJSON())
+	out := make([]map[string]interface{}, 0, len(devices))
+	for _, d := range devices {
+		out = append(out, d.ToJSON())
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, out)
 }
 
-// Update fingerprint endpoint
 func (s *Server) updateFingerprintHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	deviceID := vars["deviceId"]
-
-	// Generate new fingerprint
-	newFingerprint := device.GenerateFingerprint(deviceID)
-
-	// Update in database
-	err := s.updateDeviceFingerprint(deviceID, newFingerprint)
-	if err != nil {
-		log.Printf("❌ Failed to update fingerprint: %v", err)
+	deviceID := mux.Vars(r)["deviceId"]
+	newFP := device.GenerateFingerprint(deviceID)
+	if err := s.updateDeviceFingerprint(deviceID, newFP); err != nil {
 		http.Error(w, "Failed to update fingerprint", http.StatusInternalServerError)
 		return
 	}
-
-	response := map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"device_id":   deviceID,
-		"fingerprint": newFingerprint,
+		"fingerprint": newFP,
 		"updated_at":  time.Now(),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	})
 }
 
-// Create user endpoint
+// User Handlers
+
 func (s *Server) createUserHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Username string `json:"username"`
 		Email    string `json:"email"`
 		DeviceID string `json:"device_id"`
 	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Username == "" {
+		http.Error(w, "Invalid user creation", http.StatusBadRequest)
 		return
 	}
-
-	if req.Username == "" {
-		http.Error(w, "Username is required", http.StatusBadRequest)
-		return
-	}
-
 	user := models.NewUser(req.Username, req.Email, req.DeviceID)
-	
-	// Save user to database
-	err := s.saveUser(user)
-	if err != nil {
-		log.Printf("❌ Failed to save user: %v", err)
+	if err := s.saveUser(user); err != nil {
 		http.Error(w, "Failed to create user", http.StatusInternalServerError)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(user.ToJSON())
+	writeJSONCreated(w, user.ToJSON())
 }
 
-// Get user endpoint
 func (s *Server) getUserHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	idStr := vars["id"]
-	
-	id, err := strconv.Atoi(idStr)
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
-
 	user, err := s.getUserByID(id)
 	if err != nil {
 		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user.ToJSON())
+	writeJSON(w, user.ToJSON())
 }
 
-// List users endpoint
 func (s *Server) listUsersHandler(w http.ResponseWriter, r *http.Request) {
 	users, err := s.listAllUsers()
 	if err != nil {
-		log.Printf("❌ Failed to list users: %v", err)
 		http.Error(w, "Failed to list users", http.StatusInternalServerError)
 		return
 	}
-
-	var response []map[string]interface{}
-	for _, user := range users {
-		response = append(response, user.ToJSON())
+	out := make([]map[string]interface{}, 0, len(users))
+	for _, u := range users {
+		out = append(out, u.ToJSON())
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, out)
 }
 
-// Issue certificate endpoint
+// Certificate Handlers
+
 func (s *Server) issueCertificateHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		UserID       int    `json:"user_id"`
@@ -520,650 +413,462 @@ func (s *Server) issueCertificateHandler(w http.ResponseWriter, r *http.Request)
 		CAID         int    `json:"ca_id"`
 		DurationDays int    `json:"duration_days"`
 	}
-
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		http.Error(w, "Invalid certificate request", http.StatusBadRequest)
 		return
 	}
-
-	// Set default duration if not specified
 	if req.DurationDays == 0 {
-		req.DurationDays = 365 // 1 year default
+		req.DurationDays = 365
 	}
-
 	cert, err := s.certManager.IssueCertificate(req.UserID, req.DeviceID, req.CAID, req.DurationDays)
 	if err != nil {
-		log.Printf("❌ Failed to issue certificate: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to issue certificate: %v", err), http.StatusInternalServerError)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(cert.ToJSON())
+	writeJSONCreated(w, cert.ToJSON())
 }
 
-// Get certificate endpoint
 func (s *Server) getCertificateHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	serialNumber := vars["serialNumber"]
-
+	serialNumber := mux.Vars(r)["serialNumber"]
 	cert, err := s.certManager.GetCertificateBySerial(serialNumber)
 	if err != nil {
 		http.Error(w, "Certificate not found", http.StatusNotFound)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(cert.ToJSON())
+	writeJSON(w, cert.ToJSON())
 }
 
-// List device certificates endpoint
 func (s *Server) listDeviceCertificatesHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	deviceID := vars["deviceId"]
-
+	deviceID := mux.Vars(r)["deviceId"]
 	certs, err := s.certManager.ListCertificatesByDevice(deviceID)
 	if err != nil {
-		log.Printf("❌ Failed to list certificates: %v", err)
 		http.Error(w, "Failed to list certificates", http.StatusInternalServerError)
 		return
 	}
-
-	var response []map[string]interface{}
-	for _, cert := range certs {
-		response = append(response, cert.ToJSON())
+	out := make([]map[string]interface{}, 0, len(certs))
+	for _, c := range certs {
+		out = append(out, c.ToJSON())
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, out)
 }
 
-// List user certificates endpoint
 func (s *Server) listUserCertificatesHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	userIDStr := vars["userId"]
-	
-	userID, err := strconv.Atoi(userIDStr)
+	userID, err := strconv.Atoi(mux.Vars(r)["userId"])
 	if err != nil {
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
-
 	certs, err := s.certManager.ListCertificatesByUser(userID)
 	if err != nil {
-		log.Printf("❌ Failed to list certificates: %v", err)
 		http.Error(w, "Failed to list certificates", http.StatusInternalServerError)
 		return
 	}
-
-	var response []map[string]interface{}
-	for _, cert := range certs {
-		response = append(response, cert.ToJSON())
+	out := make([]map[string]interface{}, 0, len(certs))
+	for _, c := range certs {
+		out = append(out, c.ToJSON())
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, out)
 }
 
-// List CA certificates endpoint
 func (s *Server) listCACertificatesHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	caIDStr := vars["caId"]
-	
-	caID, err := strconv.Atoi(caIDStr)
+	caID, err := strconv.Atoi(mux.Vars(r)["caId"])
 	if err != nil {
 		http.Error(w, "Invalid CA ID", http.StatusBadRequest)
 		return
 	}
-
 	certs, err := s.certManager.ListCertificatesByCA(caID)
 	if err != nil {
-		log.Printf("❌ Failed to list certificates: %v", err)
 		http.Error(w, "Failed to list certificates", http.StatusInternalServerError)
 		return
 	}
-
-	var response []map[string]interface{}
-	for _, cert := range certs {
-		response = append(response, cert.ToJSON())
+	out := make([]map[string]interface{}, 0, len(certs))
+	for _, c := range certs {
+		out = append(out, c.ToJSON())
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, out)
 }
 
-// Revoke certificate endpoint
 func (s *Server) revokeCertificateHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	serialNumber := vars["serialNumber"]
-
+	serial := mux.Vars(r)["serialNumber"]
 	var req struct {
 		Reason string `json:"reason"`
 	}
-
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		http.Error(w, "Invalid revoke request", http.StatusBadRequest)
 		return
 	}
-
 	if req.Reason == "" {
 		req.Reason = "unspecified"
 	}
-
-	err := s.certManager.RevokeCertificate(serialNumber, req.Reason)
+	err := s.certManager.RevokeCertificate(serial, req.Reason)
 	if err != nil {
-		log.Printf("❌ Failed to revoke certificate: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to revoke certificate: %v", err), http.StatusBadRequest)
 		return
 	}
-
-	response := map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"message":       "Certificate revoked successfully",
-		"serial_number": serialNumber,
+		"serial_number": serial,
 		"reason":        req.Reason,
 		"revoked_at":    time.Now(),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	})
 }
 
-// Validate certificate endpoint
 func (s *Server) validateCertificateHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	serialNumber := vars["serialNumber"]
-
-	valid, err := s.certManager.ValidateCertificate(serialNumber)
-	if err != nil {
-		response := map[string]interface{}{
-			"valid":         false,
-			"serial_number": serialNumber,
-			"error":         err.Error(),
-			"validated_at":  time.Now(),
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-
-	response := map[string]interface{}{
+	serial := mux.Vars(r)["serialNumber"]
+	valid, err := s.certManager.ValidateCertificate(serial)
+	resp := map[string]interface{}{
+		"serial_number": serial,
 		"valid":         valid,
-		"serial_number": serialNumber,
 		"validated_at":  time.Now(),
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err != nil {
+		resp["valid"] = false
+		resp["error"] = err.Error()
+	}
+	writeJSON(w, resp)
 }
 
-// Get certificate stats endpoint
 func (s *Server) getCertificateStatsHandler(w http.ResponseWriter, r *http.Request) {
 	stats, err := s.certManager.GetCertificateStats()
 	if err != nil {
-		log.Printf("❌ Failed to get certificate stats: %v", err)
 		http.Error(w, "Failed to get certificate stats", http.StatusInternalServerError)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(stats)
+	writeJSON(w, stats)
 }
 
-// Renew certificate endpoint
-func (s *Server) renewCertificateHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	serialNumber := vars["serialNumber"]
+// Certificate Renewal Handlers
 
+func (s *Server) renewCertificateHandler(w http.ResponseWriter, r *http.Request) {
+	serial := mux.Vars(r)["serialNumber"]
 	var req struct {
 		ExtensionDays int `json:"extension_days"`
 	}
-
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		http.Error(w, "Invalid renewal request", http.StatusBadRequest)
 		return
 	}
-
 	if req.ExtensionDays == 0 {
-		req.ExtensionDays = 365 // 1 year default
+		req.ExtensionDays = 365
 	}
-
-	newCert, err := s.renewalMgr.RenewCertificate(serialNumber, req.ExtensionDays)
+	newCert, err := s.renewalMgr.RenewCertificate(serial, req.ExtensionDays)
 	if err != nil {
-		log.Printf("❌ Failed to renew certificate: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to renew certificate: %v", err), http.StatusBadRequest)
 		return
 	}
-
-	response := map[string]interface{}{
-		"message":          "Certificate renewed successfully",
-		"old_serial":       serialNumber,
-		"new_certificate":  newCert.ToJSON(),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, map[string]interface{}{
+		"message":         "Certificate renewed successfully",
+		"old_serial":      serial,
+		"new_certificate": newCert.ToJSON(),
+	})
 }
 
-// List expiring certificates endpoint
 func (s *Server) listExpiringCertificatesHandler(w http.ResponseWriter, r *http.Request) {
-	daysParam := r.URL.Query().Get("days")
-	days := 30 // default to 30 days
-	
-	if daysParam != "" {
-		if parsedDays, err := strconv.Atoi(daysParam); err == nil && parsedDays > 0 {
-			days = parsedDays
+	days := 30
+	if d := r.URL.Query().Get("days"); d != "" {
+		if val, err := strconv.Atoi(d); err == nil && val > 0 {
+			days = val
 		}
 	}
-
 	certs, err := s.renewalMgr.CheckExpiring(days)
 	if err != nil {
-		log.Printf("❌ Failed to check expiring certificates: %v", err)
 		http.Error(w, "Failed to check expiring certificates", http.StatusInternalServerError)
 		return
 	}
-
-	var response []map[string]interface{}
-	for _, cert := range certs {
-		certData := cert.ToJSON()
-		response = append(response, certData)
+	out := make([]map[string]interface{}, 0, len(certs))
+	for _, c := range certs {
+		out = append(out, c.ToJSON())
 	}
-
-	result := map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"days":         days,
-		"count":        len(response),
-		"certificates": response,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+		"count":        len(out),
+		"certificates": out,
+	})
 }
 
-// Auto-renew certificates endpoint
 func (s *Server) autoRenewHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		CheckDays     int `json:"check_days"`
 		ExtensionDays int `json:"extension_days"`
 	}
-
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-
 	if req.CheckDays == 0 {
 		req.CheckDays = 30
 	}
 	if req.ExtensionDays == 0 {
 		req.ExtensionDays = 365
 	}
-
-	renewed, err := s.renewalMgr.AutoRenewExpiring(req.CheckDays, req.ExtensionDays)
+	count, err := s.renewalMgr.AutoRenewExpiring(req.CheckDays, req.ExtensionDays)
 	if err != nil {
-		log.Printf("❌ Auto-renewal failed: %v", err)
 		http.Error(w, fmt.Sprintf("Auto-renewal failed: %v", err), http.StatusInternalServerError)
 		return
 	}
-
-	response := map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"message":        "Auto-renewal completed",
-		"renewed_count":  renewed,
+		"renewed_count":  count,
 		"check_days":     req.CheckDays,
 		"extension_days": req.ExtensionDays,
 		"timestamp":      time.Now(),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	})
 }
 
-// Get renewal info endpoint
 func (s *Server) getRenewalInfoHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	serialNumber := vars["serialNumber"]
-
-	info, err := s.renewalMgr.GetRenewalInfo(serialNumber)
+	serial := mux.Vars(r)["serialNumber"]
+	info, err := s.renewalMgr.GetRenewalInfo(serial)
 	if err != nil {
-		log.Printf("❌ Failed to get renewal info: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to get renewal info: %v", err), http.StatusNotFound)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(info)
+	writeJSON(w, info)
 }
 
-// Get renewal stats endpoint
 func (s *Server) getRenewalStatsHandler(w http.ResponseWriter, r *http.Request) {
 	stats, err := s.renewalMgr.GetRenewalStatistics()
 	if err != nil {
-		log.Printf("❌ Failed to get renewal stats: %v", err)
 		http.Error(w, "Failed to get renewal stats", http.StatusInternalServerError)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(stats)
+	writeJSON(w, stats)
 }
 
-// Bulk renew endpoint
 func (s *Server) bulkRenewHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		SerialNumbers []string `json:"serial_numbers"`
 		ExtensionDays int      `json:"extension_days"`
 	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || len(req.SerialNumbers) == 0 {
+		http.Error(w, "Invalid bulk renew request", http.StatusBadRequest)
 		return
 	}
-
-	if len(req.SerialNumbers) == 0 {
-		http.Error(w, "Serial numbers are required", http.StatusBadRequest)
-		return
-	}
-
 	if req.ExtensionDays == 0 {
 		req.ExtensionDays = 365
 	}
-
-	results, err := s.renewalMgr.BulkRenewCertificates(req.SerialNumbers, req.ExtensionDays)
+	result, err := s.renewalMgr.BulkRenewCertificates(req.SerialNumbers, req.ExtensionDays)
 	if err != nil {
-		log.Printf("❌ Bulk renewal failed: %v", err)
 		http.Error(w, fmt.Sprintf("Bulk renewal failed: %v", err), http.StatusInternalServerError)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(results)
+	writeJSON(w, result)
 }
 
-// TPM endpoints
+// TPM Handlers
 
-func (s *Server) tmpInfoHandler(w http.ResponseWriter, r *http.Request) {
-	info := s.tmpManager.GetTPMInfo()
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(info)
+func (s *Server) tpmInfoHandler(w http.ResponseWriter, r *http.Request) {
+	info := s.tpmManager.GetTPMInfo()
+	writeJSON(w, info)
 }
 
-func (s *Server) tmpGenerateKeyHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) tpmGenerateKeyHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		KeyName string `json:"key_name"`
 	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.KeyName == "" {
+		http.Error(w, "Invalid or missing key_name", http.StatusBadRequest)
 		return
 	}
-
-	if req.KeyName == "" {
-		http.Error(w, "Key name is required", http.StatusBadRequest)
-		return
-	}
-
-	keyHandle, err := s.tmpManager.GenerateKey(req.KeyName)
+	keyHandle, err := s.tpmManager.GenerateKey(req.KeyName)
 	if err != nil {
-		log.Printf("❌ Failed to generate TPM key: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to generate key: %v", err), http.StatusInternalServerError)
 		return
 	}
-
-	response := map[string]interface{}{
-		"key_name":     req.KeyName,
-		"key_handle":   fmt.Sprintf("%x", keyHandle),
+	writeJSON(w, map[string]interface{}{
+		"key_name":    req.KeyName,
+		"key_handle":  fmt.Sprintf("%x", keyHandle),
 		"generated_at": time.Now(),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	})
 }
 
-func (s *Server) tmpAttestHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	deviceID := vars["deviceId"]
-
-	attestation, err := s.tmpManager.AttestDevice(deviceID)
+func (s *Server) tpmAttestHandler(w http.ResponseWriter, r *http.Request) {
+	deviceID := mux.Vars(r)["deviceId"]
+	attestation, err := s.tpmManager.AttestDevice(deviceID)
 	if err != nil {
-		log.Printf("❌ Failed to create device attestation: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to create attestation: %v", err), http.StatusInternalServerError)
 		return
 	}
-
-	response := map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"device_id":   deviceID,
 		"attestation": fmt.Sprintf("%x", attestation),
 		"created_at":  time.Now(),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	})
 }
 
-func (s *Server) tmpEncryptHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) tpmEncryptHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		KeyHandle string `json:"key_handle"`
 		Data      string `json:"data"`
 	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.KeyHandle == "" {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
-
-	keyHandle := []byte(req.KeyHandle)
-	encrypted, err := s.tmpManager.EncryptData(keyHandle, []byte(req.Data))
+	encrypted, err := s.tpmManager.EncryptData([]byte(req.KeyHandle), []byte(req.Data))
 	if err != nil {
-		log.Printf("❌ Failed to encrypt data: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to encrypt data: %v", err), http.StatusInternalServerError)
 		return
 	}
-
-	response := map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"encrypted_data": fmt.Sprintf("%x", encrypted),
 		"encrypted_at":   time.Now(),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	})
 }
 
-func (s *Server) tmpDecryptHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) tpmDecryptHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		KeyHandle     string `json:"key_handle"`
 		EncryptedData string `json:"encrypted_data"`
 	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.KeyHandle == "" {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
-
-	keyHandle := []byte(req.KeyHandle)
-	encryptedData := []byte(req.EncryptedData)
-
-	decrypted, err := s.tmpManager.DecryptData(keyHandle, encryptedData)
+	decrypted, err := s.tpmManager.DecryptData([]byte(req.KeyHandle), []byte(req.EncryptedData))
 	if err != nil {
-		log.Printf("❌ Failed to decrypt data: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to decrypt data: %v", err), http.StatusInternalServerError)
 		return
 	}
-
-	response := map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"decrypted_data": string(decrypted),
 		"decrypted_at":   time.Now(),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	})
 }
 
-func (s *Server) tmpQuoteHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) tpmQuoteHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Nonce string `json:"nonce"`
 	}
-
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-
-	nonce := []byte(req.Nonce)
-	quote, err := s.tmpManager.GetTPMQuote(nonce)
+	quote, err := s.tpmManager.GetTPMQuote([]byte(req.Nonce))
 	if err != nil {
-		log.Printf("❌ Failed to get TPM quote: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to get TPM quote: %v", err), http.StatusInternalServerError)
 		return
 	}
-
-	response := map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"quote":      fmt.Sprintf("%x", quote),
 		"nonce":      req.Nonce,
 		"created_at": time.Now(),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	})
 }
 
-func (s *Server) tmpMetricsHandler(w http.ResponseWriter, r *http.Request) {
-	metrics := s.tmpManager.GetTPMMetrics()
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(metrics)
+func (s *Server) tpmMetricsHandler(w http.ResponseWriter, r *http.Request) {
+	metrics := s.tpmManager.GetTPMMetrics()
+	writeJSON(w, metrics)
 }
 
-// Database endpoints
+// Database Handlers
+
 func (s *Server) databaseStatsHandler(w http.ResponseWriter, r *http.Request) {
 	stats := s.db.GetStats()
-	
-	// Add additional database information
 	if version, err := s.db.GetDatabaseVersion(); err == nil {
 		stats["version"] = version
 	}
-	
 	if size, err := s.db.GetDatabaseSize(); err == nil {
 		stats["database_size"] = size
 	}
-	
-	if tableSizes, err := s.db.GetTableSizes(); err == nil {
-		stats["table_sizes"] = tableSizes
+	if tblSizes, err := s.db.GetTableSizes(); err == nil {
+		stats["table_sizes"] = tblSizes
 	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(stats)
+	writeJSON(w, stats)
 }
 
 func (s *Server) databaseHealthHandler(w http.ResponseWriter, r *http.Request) {
 	err := s.db.HealthCheck()
-	
 	health := map[string]interface{}{
 		"healthy":   err == nil,
 		"timestamp": time.Now(),
 	}
-	
 	if err != nil {
 		health["error"] = err.Error()
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(health)
+	writeJSON(w, health)
 }
 
-// Database helper methods
+// Database helper methods for Devices, Users, CA (see previous message) should be included here unchanged.
+
 func (s *Server) saveDevice(device *models.Device) error {
 	query := `
 		INSERT INTO devices (device_id, fingerprint, tmp_enabled, created_at, last_seen, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id
 	`
-	
-	err := s.db.QueryRow(query,
+	return s.db.QueryRow(query,
 		device.DeviceID, device.Fingerprint, device.TPMEnabled,
 		device.CreatedAt, device.LastSeen, device.UpdatedAt,
 	).Scan(&device.ID)
-	
-	if err != nil {
-		return fmt.Errorf("failed to insert device: %w", err)
-	}
-	
-	return nil
 }
 
 func (s *Server) getDeviceByID(deviceID string) (*models.Device, error) {
 	query := `
 		SELECT id, device_id, fingerprint, tmp_enabled, created_at, last_seen, updated_at
-		FROM devices WHERE device_id = $1
+		FROM devices
+		WHERE device_id = $1
 	`
-	
-	row := s.db.QueryRow(query, deviceID)
 	device := &models.Device{}
-	
-	err := row.Scan(&device.ID, &device.DeviceID, &device.Fingerprint, 
-		&device.TPMEnabled, &device.CreatedAt, &device.LastSeen, &device.UpdatedAt)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("device not found")
-		}
-		return nil, fmt.Errorf("failed to get device: %w", err)
+	err := s.db.QueryRow(query, deviceID).Scan(
+		&device.ID, &device.DeviceID, &device.Fingerprint, &device.TPMEnabled,
+		&device.CreatedAt, &device.LastSeen, &device.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("device not found")
+	} else if err != nil {
+		return nil, fmt.Errorf("error getting device: %w", err)
 	}
-	
 	return device, nil
 }
 
 func (s *Server) listAllDevices() ([]*models.Device, error) {
 	query := `
 		SELECT id, device_id, fingerprint, tmp_enabled, created_at, last_seen, updated_at
-		FROM devices ORDER BY last_seen DESC
+		FROM devices
+		ORDER BY last_seen DESC
 	`
-	
 	rows, err := s.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query devices: %w", err)
+		return nil, fmt.Errorf("error querying devices: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var devices []*models.Device
-	
 	for rows.Next() {
-		device := &models.Device{}
-		err := rows.Scan(&device.ID, &device.DeviceID, &device.Fingerprint,
-			&device.TPMEnabled, &device.CreatedAt, &device.LastSeen, &device.UpdatedAt)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan device: %w", err)
+		d := &models.Device{}
+		if err := rows.Scan(
+			&d.ID, &d.DeviceID, &d.Fingerprint, &d.TPMEnabled,
+			&d.CreatedAt, &d.LastSeen, &d.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("error scanning device: %w", err)
 		}
-		devices = append(devices, device)
+		devices = append(devices, d)
 	}
-	
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to iterate devices: %w", err)
-	}
-	
 	return devices, nil
 }
 
 func (s *Server) updateDeviceFingerprint(deviceID, fingerprint string) error {
 	query := `
-		UPDATE devices 
-		SET fingerprint = $2, last_seen = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-		WHERE device_id = $1
+		UPDATE devices
+		SET fingerprint=$2, last_seen=NOW(), updated_at=NOW()
+		WHERE device_id=$1
 	`
-	
-	result, err := s.db.Exec(query, deviceID, fingerprint)
+	res, err := s.db.Exec(query, deviceID, fingerprint)
 	if err != nil {
-		return fmt.Errorf("failed to update device fingerprint: %w", err)
+		return fmt.Errorf("error updating device fingerprint: %w", err)
 	}
-	
-	rowsAffected, err := result.RowsAffected()
+	affected, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
+		return fmt.Errorf("error getting rows affected: %w", err)
 	}
-	
-	if rowsAffected == 0 {
+	if affected == 0 {
 		return fmt.Errorf("device not found")
 	}
-	
 	return nil
 }
+
+// Users
 
 func (s *Server) saveUser(user *models.User) error {
 	query := `
@@ -1171,87 +876,141 @@ func (s *Server) saveUser(user *models.User) error {
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id
 	`
-	
-	err := s.db.QueryRow(query,
-		user.Username, user.Email, user.DeviceID, user.CreatedAt, user.UpdatedAt,
+	return s.db.QueryRow(query,
+		user.Username, user.Email, user.DeviceID,
+		user.CreatedAt, user.UpdatedAt,
 	).Scan(&user.ID)
-	
-	if err != nil {
-		return fmt.Errorf("failed to insert user: %w", err)
-	}
-	
-	return nil
 }
 
-func (s *Server) getUserByID(userID int) (*models.User, error) {
+func (s *Server) getUserByID(id int) (*models.User, error) {
 	query := `
 		SELECT id, username, email, device_id, created_at, updated_at
-		FROM users WHERE id = $1
+		FROM users
+		WHERE id=$1
 	`
-	
-	row := s.db.QueryRow(query, userID)
 	user := &models.User{}
-	
 	var email, deviceID sql.NullString
-	
-	err := row.Scan(&user.ID, &user.Username, &email, &deviceID,
-		&user.CreatedAt, &user.UpdatedAt)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("user not found")
-		}
-		return nil, fmt.Errorf("failed to get user: %w", err)
+	err := s.db.QueryRow(query, id).Scan(
+		&user.ID, &user.Username, &email, &deviceID,
+		&user.CreatedAt, &user.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("user not found")
+	} else if err != nil {
+		return nil, fmt.Errorf("error getting user: %w", err)
 	}
-	
 	if email.Valid {
 		user.Email = email.String
 	}
-	
 	if deviceID.Valid {
 		user.DeviceID = deviceID.String
 	}
-	
 	return user, nil
 }
 
 func (s *Server) listAllUsers() ([]*models.User, error) {
 	query := `
 		SELECT id, username, email, device_id, created_at, updated_at
-		FROM users ORDER BY created_at DESC
+		FROM users
+		ORDER BY created_at DESC
 	`
-	
 	rows, err := s.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query users: %w", err)
+		return nil, fmt.Errorf("error querying users: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var users []*models.User
-	
 	for rows.Next() {
-		user := &models.User{}
+		u := &models.User{}
 		var email, deviceID sql.NullString
-		
-		err := rows.Scan(&user.ID, &user.Username, &email, &deviceID,
-			&user.CreatedAt, &user.UpdatedAt)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan user: %w", err)
+		if err := rows.Scan(
+			&u.ID, &u.Username, &email, &deviceID,
+			&u.CreatedAt, &u.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("error scanning user: %w", err)
 		}
-		
 		if email.Valid {
-			user.Email = email.String
+			u.Email = email.String
 		}
-		
 		if deviceID.Valid {
-			user.DeviceID = deviceID.String
+			u.DeviceID = deviceID.String
 		}
-		
-		users = append(users, user)
+		users = append(users, u)
 	}
-	
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to iterate users: %w", err)
-	}
-	
 	return users, nil
+}
+
+// Certificate Authorities (CA)
+
+func (s *Server) saveCA(ca *models.CA) error {
+	query := `
+		INSERT INTO certificate_authorities (name, cert_pem, key_pem, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id
+	`
+	return s.db.QueryRow(query,
+		ca.Name, ca.CertPEM, ca.KeyPEM,
+		ca.CreatedAt, ca.UpdatedAt,
+	).Scan(&ca.ID)
+}
+
+func (s *Server) getCAByID(id int) (*models.CA, error) {
+	query := `
+		SELECT id, name, cert_pem, key_pem, created_at, updated_at
+		FROM certificate_authorities
+		WHERE id=$1
+	`
+	ca := &models.CA{}
+	err := s.db.QueryRow(query, id).Scan(
+		&ca.ID, &ca.Name, &ca.CertPEM, &ca.KeyPEM, &ca.CreatedAt, &ca.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("CA not found")
+	} else if err != nil {
+		return nil, fmt.Errorf("error getting CA: %w", err)
+	}
+	return ca, nil
+}
+
+func (s *Server) listAllCAs() ([]*models.CA, error) {
+	query := `
+		SELECT id, name, cert_pem, key_pem, created_at, updated_at
+		FROM certificate_authorities
+		ORDER BY created_at DESC
+	`
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("error querying CAs: %w", err)
+	}
+	defer rows.Close()
+
+	var cas []*models.CA
+	for rows.Next() {
+		c := &models.CA{}
+		if err := rows.Scan(&c.ID, &c.Name, &c.CertPEM, &c.KeyPEM, &c.CreatedAt, &c.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("error scanning CA: %w", err)
+		}
+		cas = append(cas, c)
+	}
+	return cas, nil
+}
+
+func (s *Server) deleteCA(id int) error {
+	query := `
+		DELETE FROM certificate_authorities
+		WHERE id=$1
+	`
+	res, err := s.db.Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("error deleting CA: %w", err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error checking delete result: %w", err)
+	}
+	if affected == 0 {
+		return fmt.Errorf("CA not found")
+	}
+	return nil
 }
