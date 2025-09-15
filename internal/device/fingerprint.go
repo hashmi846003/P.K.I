@@ -70,7 +70,7 @@ func getMACAddress() string {
 			continue
 		}
 		
-		if inter.HardwareAddr != nil && len(inter.HardwareAddr) >= 6 {
+		if len(inter.HardwareAddr) >= 6 {
 			mac := inter.HardwareAddr.String()
 			// Skip invalid MAC addresses
 			if mac != "" && mac != "00:00:00:00:00:00" {
@@ -211,3 +211,4 @@ func GenerateFingerprintWithSalt(deviceID, salt string) string {
 	hash := sha256.Sum256([]byte(combined))
 	return fmt.Sprintf("%x", hash)
 }
+
