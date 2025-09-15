@@ -12,8 +12,8 @@ import (
 	"math/big"
 	"time"
 
-	"hashmi846003/P.K.I/internal/database"
-	"hashmi846003/P.K.I/internal/models"
+	"github.com/hashmi846003/P.K.I/internal/database"
+	"github.com/hashmi846003/P.K.I/internal/models"
 )
 
 // Manager handles certificate operations
@@ -642,3 +642,4 @@ func (m *Manager) DeleteCA(caID int) error {
 	log.Printf("🗑️  Deleted CA with ID: %d", caID)
 	return nil
 }
+
