@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"hashmi846003/P.K.I/internal/models"
+	"github.com/hashmi846003/P.K.I/internal/models"
 )
 
 // RenewalManager handles certificate renewal operations
@@ -372,3 +372,4 @@ func (rm *RenewalManager) ScheduleRenewal(serialNumber string, renewalDays int, 
 	
 	return nil
 }
+
