@@ -8,10 +8,10 @@ import (
 
 	"github.com/joho/godotenv"
 
-	"hashmi846003/P.K.I/internal/config"
-	"hashmi846003/P.K.I/internal/database"
-	"hashmi846003/P.K.I/internal/server"
-	"haashmi846003/P.K.I/internal/tpm"
+	"github.com/hashmi846003/P.K.I/internal/config"
+	"github.com/hashmi846003/P.K.I/internal/database"
+	"github.com/hashmi846003/P.K.I/internal/server"
+	"github.com/hashmi846003/P.K.I/internal/tpm"
 )
 
 func main() {
